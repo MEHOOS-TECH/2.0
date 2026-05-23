@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+<meta charset='UTF-8'>
+<meta name='viewport' content='width=device-width, initial-scale=1.0'>
+<title>Affidit</title>
+<script src='https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2'></script>
+<style>body{background:#081018;color:white;font-family:Arial,sans-serif;padding:20px}.card{background:#111827;padding:24px;border-radius:16px;max-width:500px;margin:20px auto}input{width:100%;padding:12px;margin:10px 0;border:none;border-radius:10px;background:#1f2937;color:white;box-sizing:border-box}button{width:100%;padding:12px;border:none;border-radius:10px;background:#10b981;font-weight:bold;cursor:pointer}#dashboard{display:none}</style>
+</head>
+<body>
+<div class='card'>
+<h1>Affidit</h1>
+<input id='signupName' placeholder='Full Name'>
+<input id='signupEmail' placeholder='Email'>
+<input id='signupPassword' type='password' placeholder='Password'>
+<button onclick='signUp()'>Create Account</button>
+<hr style='margin:20px 0'>
+<input id='loginEmail' placeholder='Email'>
+<input id='loginPassword' type='password' placeholder='Password'>
+<button onclick='login()'>Login</button>
+<div id='dashboard'><h2>Dashboard</h2><p id='welcome'></p><button onclick='logout()'>Logout</button></div>
+</div>
+<script>
+const db=supabase.createClient('https://eefuslcthzshlywnvmxh.supabase.co','sb_publishable_Cg5ruwk1M0879b51EhASnw_MojwW174');
+async function signUp(){const name=document.getElementById('signupName').value;const email=document.getElementById('signupEmail').value;const password=document.getElementById('signupPassword').value;const {data,error}=await db.auth.signUp({email,password});if(error){alert(error.message);return;}await db.from('users').insert([{id:data.user.id,full_name:name,email}]);document.getElementById('welcome').innerText='Welcome '+name;document.getElementById('dashboard').style.display='block';alert('Account created successfully');}
+async function login(){const email=document.getElementById('loginEmail').value;const password=document.getElementById('loginPassword').value;const {data,error}=await db.auth.signInWithPassword({email,password});if(error){alert(error.message);return;}document.getElementById('welcome').innerText='Welcome '+data.user.email;document.getElementById('dashboard').style.display='block';alert('Login successful');}
+async function logout(){await db.auth.signOut();document.getElementById('dashboard').style.display='none';}
+</script>
+</body>
+</html>
