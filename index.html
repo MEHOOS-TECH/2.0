@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Affidit — Affiliate Platform</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Clash+Display:wght@400;600;700&family=Cabinet+Grotesk:wght@300;400;500;700&display=swap" rel="stylesheet" />
+
+  <style>
+    :root {
+      --bg:        #040810;
+      --surface:   #0b1120;
+      --surface-2: #111d35;
+      --surface-3: #18273d;
+      --border:    rgba(52,211,153,0.12);
+      --green:     #10b981;
+      --green-dim: rgba(16,185,129,0.15);
+      --green-glow:rgba(16,185,129,0.25);
+      --cyan:      #22d3ee;
+      --text:      #e0f0ea;
+      --text-mid:  #7aa89a;
+      --text-muted:#3d6655;
+      --error:     #f87171;
+      --warn:      #fbbf24;
+    }
+    *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Cabinet Grotesk', sans-serif;
+      font-weight: 400;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+    body::before {
+      content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
+      background:
+        radial-gradient(ellipse 60% 40% at 80% 10%, rgba(16,185,129,0.07) 0%, transparent 60%),
+        radial-gradient(ellipse 50% 50% at 10% 90%, rgba(34,211,238,0.05) 0%, transparent 60%);
+    }
+    body::after {
+      content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
+      background-image:
+        linear-gradient(rgba(16,185,129,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(16,185,129,0.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+    }
+    nav {
+      position: sticky; top:0; z-index:100;
+      background: rgba(4,8,16,0.85);
+      backdrop-filter: blur(14px);
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 28px; height: 62px;
+    }
+    .nav-logo {
+      font-family: 'Clash Display', sans-serif;
+      font-size: 22px; font-weight: 700;
+      background: linear-gradient(135deg, #e0f0ea 30%, var(--green));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip:text;
+      letter-spacing: -0.5px;
+    }
+    .nav-links { display:flex; gap:6px; }
+    .nav-btn {
+      background: none; border: 1px solid transparent;
+      color: var(--text-mid); padding: 7px 16px; border-radius: 8px;
+      font-family: 'Cabinet Grotesk', sans-serif; font-size: 13px; font-weight: 500;
+      cursor: pointer; transition: all 0.2s; letter-spacing: 0.3px;
+    }
+    .nav-btn:hover { color:var(--text); border-color:var(--border); background:var(--surface); }
+    .nav-btn.active { color:var(--green); border-color:var(--green-dim); background:var(--green-dim); }
+    .nav-user { display:flex; align-items:center; gap:10px; }
+    .user-pill {
+      font-size:12px; color:var(--text-mid); background:var(--surface-2);
+      border:1px solid var(--border); padding:5px 12px; border-radius:100px; display:none;
+    }
+    .logout-btn {
+      font-size:12px; color:var(--text-muted); background:none; border:none;
+      cursor:pointer; transition:color 0.2s; font-family:'Cabinet Grotesk',sans-serif; display:none;
+    }
+    .logout-btn:hover { color:var(--error); }
+    .view { display:none; position:relative; z-index:1; }
+    .view.active { display:block; }
+    #view-hero {
+      min-height:calc(100vh - 62px); display:flex; flex-direction:column;
+      align-items:center; justify-content:center; text-align:center; padding:60px 24px;
+    }
+    .hero-tag {
+      font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:3px;
+      color:var(--green); border:1px solid var(--green-dim); background:var(--green-dim);
+      padding:6px 16px; border-radius:100px; margin-bottom:28px; display:inline-block;
+      animation:fadeDown 0.6s ease both;
+    }
+    .hero-title {
+      font-family:'Clash Display',sans-serif;
+      font-size:clamp(42px,7vw,88px); font-weight:700;
+      line-height:1.0; letter-spacing:-2px; margin-bottom:20px;
+      animation:fadeDown 0.6s 0.1s ease both;
+    }
+    .hero-title .accent { color:var(--green); }
+    .hero-sub {
+      font-size:17px; color:var(--text-mid); max-width:480px;
+      line-height:1.7; margin-bottom:44px; animation:fadeDown 0.6s 0.2s ease both;
+    }
+    .hero-ctas { display:flex; gap:14px; flex-wrap:wrap; justify-content:center; animation:fadeDown 0.6s 0.3s ease both; }
+    .btn-primary {
+      padding:14px 32px; background:var(--green); color:#020c08;
+      border:none; border-radius:10px; font-family:'Cabinet Grotesk',sans-serif;
+      font-weight:700; font-size:14px; cursor:pointer; transition:all 0.2s;
+      box-shadow:0 4px 24px var(--green-glow); letter-spacing:0.3px;
+    }
+    .btn-primary:hover { transform:translateY(-2px); box-shadow:0 8px 32px var(--green-glow); }
+    .btn-primary:active { transform:translateY(0); }
+    .btn-secondary {
+      padding:14px 28px; background:none; color:var(--text);
+      border:1px solid var(--border); border-radius:10px;
+      font-family:'Cabinet Grotesk',sans-serif; font-weight:500; font-size:14px;
+      cursor:pointer; transition:all 0.2s;
+    }
+    .btn-secondary:hover { border-color:var(--green-dim); color:var(--green); background:var(--green-dim); }
+    .hero-stats {
+      display:flex; gap:48px; margin-top:72px;
+      border-top:1px solid var(--border); padding-top:36px;
+      animation:fadeDown 0.6s 0.4s ease both;
+    }
+    .stat-item { text-align:center; }
+    .stat-num { font-family:'Clash Display',sans-serif; font-size:28px; font-weight:700; color:var(--green); }
+    .stat-label { font-size:12px; color:var(--text-muted); margin-top:4px; letter-spacing:0.5px; }
+    .page { max-width:960px; margin:0 auto; padding:40px 24px 80px; }
+    .page-title { font-family:'Clash Display',sans-serif; font-size:28px; font-weight:700; letter-spacing:-0.5px; margin-bottom:6px; }
+    .page-sub { font-size:14px; color:var(--text-mid); margin-bottom:32px; }
+    .card {
+      background:var(--surface); border:1px solid var(--border);
+      border-radius:16px; padding:28px; position:relative; overflow:hidden;
+    }
+    .card::before {
+      content:''; position:absolute; top:0; left:0; right:0; height:1px;
+      background:linear-gradient(90deg,transparent,var(--green),transparent); opacity:0.4;
+    }
+    .card-title { font-family:'Clash Display',sans-serif; font-size:16px; font-weight:600; margin-bottom:20px; color:var(--text); }
+    .field { margin-bottom:14px; }
+    .field label { display:block; font-size:12px; color:var(--text-mid); margin-bottom:6px; font-weight:500; letter-spacing:0.5px; text-transform:uppercase; }
+    input[type="email"], input[type="password"], input[type="number"], input[type="text"], input[readonly] {
+      width:100%; padding:12px 16px; background:var(--surface-2);
+      border:1px solid var(--border); border-radius:10px; color:var(--text);
+      font-family:'Cabinet Grotesk',sans-serif; font-size:14px; transition:border-color 0.2s; outline:none;
+    }
+    input:focus { border-color:rgba(16,185,129,0.4); }
+    input[readonly] { color:var(--text-mid); cursor:default; }
+    input::placeholder { color:var(--text-muted); }
+    .btn-full {
+      width:100%; padding:13px; background:var(--green); color:#020c08;
+      border:none; border-radius:10px; font-family:'Cabinet Grotesk',sans-serif;
+      font-weight:700; font-size:14px; cursor:pointer; transition:all 0.2s;
+      box-shadow:0 4px 20px var(--green-glow); margin-top:6px;
+    }
+    .btn-full:hover { opacity:0.9; transform:translateY(-1px); }
+    .btn-full:disabled { opacity:0.4; cursor:not-allowed; transform:none; }
+    .status-msg { margin-top:14px; padding:11px 14px; border-radius:9px; font-size:13px; font-weight:500; text-align:center; display:none; }
+    .status-msg.show { display:block; }
+    .status-msg.success { background:rgba(16,185,129,0.12); color:var(--green); border:1px solid rgba(16,185,129,0.2); }
+    .status-msg.error   { background:rgba(248,113,113,0.1); color:var(--error); border:1px solid rgba(248,113,113,0.2); }
+    .status-msg.info    { background:rgba(34,211,238,0.08); color:var(--cyan); border:1px solid rgba(34,211,238,0.15); }
+    .auth-grid { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+    .dash-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:24px; }
+    .stat-card {
+      background:var(--surface); border:1px solid var(--border);
+      border-radius:14px; padding:20px 22px; position:relative; overflow:hidden;
+    }
+    .stat-card::after {
+      content:''; position:absolute; bottom:-20px; right:-20px;
+      width:80px; height:80px; border-radius:50%; background:var(--green-dim);
+    }
+    .stat-card .s-label { font-size:11px; text-transform:uppercase; letter-spacing:1px; color:var(--text-muted); margin-bottom:10px; }
+    .stat-card .s-value { font-family:'Clash Display',sans-serif; font-size:30px; font-weight:700; color:var(--green); }
+    .stat-card .s-sub   { font-size:12px; color:var(--text-muted); margin-top:4px; }
+    .referral-box { display:flex; gap:10px; align-items:center; }
+    .referral-box input { flex:1; }
+    .copy-btn {
+      padding:12px 18px; background:var(--surface-3); border:1px solid var(--border);
+      color:var(--text); border-radius:10px; cursor:pointer; font-family:'Cabinet Grotesk',sans-serif;
+      font-size:13px; font-weight:500; white-space:nowrap; transition:all 0.2s;
+    }
+    .copy-btn:hover { border-color:var(--green-dim); color:var(--green); }
+    .section-header { font-family:'Clash Display',sans-serif; font-size:15px; font-weight:600; margin-bottom:14px; display:flex; align-items:center; justify-content:space-between; }
+    .count-badge { font-family:'Cabinet Grotesk',sans-serif; font-size:11px; font-weight:500; background:var(--surface-3); border:1px solid var(--border); padding:3px 10px; border-radius:100px; color:var(--text-mid); }
+    .referral-item { display:flex; align-items:center; justify-content:space-between; padding:14px 16px; background:var(--surface-2); border:1px solid var(--border); border-radius:10px; margin-bottom:8px; animation:fadeUp 0.3s ease both; }
+    .referral-item .ri-label { font-size:13px; color:var(--text-mid); }
+    .referral-item .ri-amount { font-family:'Clash Display',sans-serif; font-size:16px; font-weight:600; color:var(--green); }
+    .empty-state { text-align:center; padding:40px 20px; color:var(--text-muted); font-size:14px; }
+    .empty-state .e-icon { font-size:32px; margin-bottom:10px; }
+    .product-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:16px; }
+    .product-card { background:var(--surface); border:1px solid var(--border); border-radius:14px; overflow:hidden; transition:all 0.25s; animation:fadeUp 0.4s ease both; }
+    .product-card:hover { transform:translateY(-4px); border-color:rgba(16,185,129,0.25); box-shadow:0 12px 40px rgba(0,0,0,0.4); }
+    .product-header { padding:22px 22px 14px; border-bottom:1px solid var(--border); }
+    .product-name { font-family:'Clash Display',sans-serif; font-size:17px; font-weight:600; margin-bottom:6px; }
+    .product-price { font-size:24px; font-weight:700; color:var(--green); font-family:'Clash Display',sans-serif; }
+    .product-body { padding:16px 22px 20px; }
+    .commission-badge { display:inline-flex; align-items:center; gap:6px; background:var(--green-dim); border:1px solid rgba(16,185,129,0.2); color:var(--green); font-size:12px; font-weight:600; padding:4px 12px; border-radius:100px; margin-bottom:14px; }
+    .promote-btn { width:100%; padding:11px; background:var(--surface-3); border:1px solid var(--border); border-radius:9px; color:var(--text); font-family:'Cabinet Grotesk',sans-serif; font-weight:600; font-size:13px; cursor:pointer; transition:all 0.2s; }
+    .promote-btn:hover { background:var(--green-dim); border-color:var(--green-dim); color:var(--green); }
+    .withdraw-layout { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+    .pending-item { display:flex; align-items:center; justify-content:space-between; padding:13px 16px; background:var(--surface-2); border:1px solid var(--border); border-radius:10px; margin-bottom:8px; }
+    .pending-item .pi-amount { font-family:'Clash Display',sans-serif; font-size:16px; font-weight:600; }
+    .pending-badge { font-size:10px; text-transform:uppercase; letter-spacing:1px; padding:4px 10px; border-radius:100px; background:rgba(251,191,36,0.12); color:var(--warn); border:1px solid rgba(251,191,36,0.2); }
+    .toast { position:fixed; bottom:28px; right:28px; background:var(--surface-2); border:1px solid var(--green-dim); color:var(--green); padding:13px 20px; border-radius:12px; font-size:13px; font-weight:500; box-shadow:0 8px 32px rgba(0,0,0,0.5); transform:translateY(80px); opacity:0; transition:all 0.3s cubic-bezier(0.34,1.56,0.64,1); z-index:999; pointer-events:none; }
+    .toast.show { transform:translateY(0); opacity:1; }
+    .spinner { width:28px; height:28px; border:2px solid var(--border); border-top-color:var(--green); border-radius:50%; margin:30px auto; animation:spin 0.7s linear infinite; }
+    @keyframes fadeDown { from{opacity:0;transform:translateY(-12px)} to{opacity:1;transform:none} }
+    @keyframes fadeUp   { from{opacity:0;transform:translateY(12px)}  to{opacity:1;transform:none} }
+    @keyframes spin     { to{transform:rotate(360deg)} }
+    ::-webkit-scrollbar { width:5px; }
+    ::-webkit-scrollbar-track { background:var(--bg); }
+    ::-webkit-scrollbar-thumb { background:var(--surface-2); border-radius:3px; }
+    @media(max-width:720px){ .dash-grid{ grid-template-columns:1fr 1fr; } }
+    @media(max-width:640px){ .auth-grid,.withdraw-layout{ grid-template-columns:1fr; } }
+    @media(max-width:480px){ nav{padding:0 16px;} .hero-stats{gap:28px;} .page{padding:28px 16px 60px;} .dash-grid{grid-template-columns:1fr;} }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo">Affidit</div>
+  <div class="nav-links" id="navLinks">
+    <button class="nav-btn active" onclick="goTo('hero')">Home</button>
+    <button class="nav-btn" onclick="goTo('auth')">Sign In</button>
+  </div>
+  <div class="nav-user">
+    <span class="user-pill" id="userPill"></span>
+    <button class="logout-btn" id="logoutBtn" onclick="logout()">Sign out</button>
+  </div>
+</nav>
+
+<!-- HERO -->
+<div class="view active" id="view-hero">
+  <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:calc(100vh - 62px);text-align:center;padding:60px 24px;">
+    <div class="hero-tag">Affiliate Marketing Platform</div>
+    <h1 class="hero-title">Turn referrals<br>into <span class="accent">revenue</span></h1>
+    <p class="hero-sub">Promote products, earn commissions, and track everything in one clean dashboard.</p>
+    <div class="hero-ctas">
+      <button class="btn-primary" onclick="goTo('auth')">Get Started Free</button>
+      <button class="btn-secondary" onclick="goTo('products-public')">Browse Products</button>
+    </div>
+    <div class="hero-stats">
+      <div class="stat-item"><div class="stat-num">3+</div><div class="stat-label">Products</div></div>
+      <div class="stat-item"><div class="stat-num">35%</div><div class="stat-label">Max Commission</div></div>
+      <div class="stat-item"><div class="stat-num">$0</div><div class="stat-label">To Join</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- AUTH -->
+<div class="view" id="view-auth">
+  <div class="page" style="max-width:760px;">
+    <div class="page-title">Welcome to Affidit</div>
+    <div class="page-sub">Create your affiliate account or sign in below</div>
+    <!-- Register -->
+    <div class="card" style="margin-bottom:20px;">
+      <div class="card-title">Create Account</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+        <div class="field"><label>Full Name</label><input type="text" id="signupFullName" placeholder="Jane Doe" /></div>
+        <div class="field"><label>Username</label><input type="text" id="signupUsername" placeholder="janedoe" /></div>
+        <div class="field"><label>Email</label><input type="email" id="signupEmail" placeholder="you@example.com" /></div>
+        <div class="field"><label>Phone Number</label><input type="text" id="signupPhone" placeholder="+1 555 000 0000" /></div>
+        <div class="field"><label>Country</label>
+          <select id="signupCountry" style="width:100%;padding:12px 16px;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:'Cabinet Grotesk',sans-serif;font-size:14px;outline:none;cursor:pointer;">
+            <option value="" disabled selected>Select country…</option>
+            <option>Afghanistan</option><option>Albania</option><option>Algeria</option><option>Andorra</option><option>Angola</option><option>Argentina</option><option>Armenia</option><option>Australia</option><option>Austria</option><option>Azerbaijan</option><option>Bahamas</option><option>Bahrain</option><option>Bangladesh</option><option>Belarus</option><option>Belgium</option><option>Belize</option><option>Benin</option><option>Bhutan</option><option>Bolivia</option><option>Bosnia and Herzegovina</option><option>Botswana</option><option>Brazil</option><option>Brunei</option><option>Bulgaria</option><option>Burkina Faso</option><option>Burundi</option><option>Cambodia</option><option>Cameroon</option><option>Canada</option><option>Chad</option><option>Chile</option><option>China</option><option>Colombia</option><option>Congo</option><option>Costa Rica</option><option>Croatia</option><option>Cuba</option><option>Cyprus</option><option>Czech Republic</option><option>Denmark</option><option>Djibouti</option><option>Dominican Republic</option><option>Ecuador</option><option>Egypt</option><option>El Salvador</option><option>Estonia</option><option>Ethiopia</option><option>Fiji</option><option>Finland</option><option>France</option><option>Gabon</option><option>Gambia</option><option>Georgia</option><option>Germany</option><option>Ghana</option><option>Greece</option><option>Guatemala</option><option>Guinea</option><option>Haiti</option><option>Honduras</option><option>Hungary</option><option>Iceland</option><option>India</option><option>Indonesia</option><option>Iran</option><option>Iraq</option><option>Ireland</option><option>Israel</option><option>Italy</option><option>Jamaica</option><option>Japan</option><option>Jordan</option><option>Kazakhstan</option><option>Kenya</option><option>Kuwait</option><option>Kyrgyzstan</option><option>Laos</option><option>Latvia</option><option>Lebanon</option><option>Liberia</option><option>Libya</option><option>Lithuania</option><option>Luxembourg</option><option>Madagascar</option><option>Malawi</option><option>Malaysia</option><option>Maldives</option><option>Mali</option><option>Malta</option><option>Mexico</option><option>Moldova</option><option>Mongolia</option><option>Montenegro</option><option>Morocco</option><option>Mozambique</option><option>Myanmar</option><option>Namibia</option><option>Nepal</option><option>Netherlands</option><option>New Zealand</option><option>Nicaragua</option><option>Niger</option><option>Nigeria</option><option>North Korea</option><option>North Macedonia</option><option>Norway</option><option>Oman</option><option>Pakistan</option><option>Panama</option><option>Papua New Guinea</option><option>Paraguay</option><option>Peru</option><option>Philippines</option><option>Poland</option><option>Portugal</option><option>Qatar</option><option>Romania</option><option>Russia</option><option>Rwanda</option><option>Saudi Arabia</option><option>Senegal</option><option>Serbia</option><option>Sierra Leone</option><option>Singapore</option><option>Slovakia</option><option>Slovenia</option><option>Somalia</option><option>South Africa</option><option>South Korea</option><option>South Sudan</option><option>Spain</option><option>Sri Lanka</option><option>Sudan</option><option>Sweden</option><option>Switzerland</option><option>Syria</option><option>Taiwan</option><option>Tajikistan</option><option>Tanzania</option><option>Thailand</option><option>Togo</option><option>Trinidad and Tobago</option><option>Tunisia</option><option>Turkey</option><option>Turkmenistan</option><option>Uganda</option><option>Ukraine</option><option>United Arab Emirates</option><option>United Kingdom</option><option>United States</option><option>Uruguay</option><option>Uzbekistan</option><option>Venezuela</option><option>Vietnam</option><option>Yemen</option><option>Zambia</option><option>Zimbabwe</option>
+          </select>
+        </div>
+        <div class="field"><label>Password</label><input type="password" id="signupPassword" placeholder="min. 6 characters" /></div>
+      </div>
+      <button class="btn-full" onclick="signUp()">Create Account</button>
+      <div class="status-msg" id="signupStatus"></div>
+    </div>
+
+    <!-- Login -->
+    <div class="card" style="max-width:420px;">
+      <div class="card-title">Sign In</div>
+      <div class="field"><label>Email</label><input type="email" id="loginEmail" placeholder="you@example.com" /></div>
+      <div class="field"><label>Password</label><input type="password" id="loginPassword" placeholder="Your password" /></div>
+      <button class="btn-full" onclick="login()">Sign In</button>
+      <div class="status-msg" id="loginStatus"></div>
+    </div>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div class="view" id="view-dashboard">
+  <div class="page">
+    <div class="page-title">Dashboard</div>
+    <div class="page-sub" id="dashWelcome">Welcome back</div>
+    <div class="dash-grid">
+      <div class="stat-card"><div class="s-label">Balance</div><div class="s-value" id="dashBalance">$0</div><div class="s-sub">Available to withdraw</div></div>
+      <div class="stat-card"><div class="s-label">Referrals</div><div class="s-value" id="dashReferralCount">0</div><div class="s-sub">Total referrals made</div></div>
+      <div class="stat-card"><div class="s-label">Referral Code</div><div class="s-value" id="dashCode" style="font-size:20px;">—</div><div class="s-sub">Your unique code</div></div>
+    </div>
+
+    <!-- Profile strip -->
+    <div class="card" style="margin-bottom:20px;">
+      <div class="card-title">Profile</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;">
+        <div><div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-bottom:4px;">Full Name</div><div id="profName" style="font-size:15px;font-weight:500;">—</div></div>
+        <div><div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-bottom:4px;">Username</div><div id="profUsername" style="font-size:15px;font-weight:500;">—</div></div>
+        <div><div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-bottom:4px;">Phone</div><div id="profPhone" style="font-size:15px;font-weight:500;">—</div></div>
+        <div><div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-bottom:4px;">Country</div><div id="profCountry" style="font-size:15px;font-weight:500;">—</div></div>
+        <div><div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-bottom:4px;">Email</div><div id="profEmail" style="font-size:15px;font-weight:500;">—</div></div>
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:20px;">
+      <div class="card-title">Your Referral Link</div>
+      <div class="referral-box">
+        <input type="text" id="referralLink" readonly placeholder="Loading…" />
+        <button class="copy-btn" onclick="copyLink()">Copy</button>
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:20px;">
+      <div class="section-header">Referral History <span class="count-badge" id="referralBadge">0</span></div>
+      <div id="referralsList"><div class="spinner"></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- PRODUCTS (auth) -->
+<div class="view" id="view-products">
+  <div class="page">
+    <div class="page-title">Affiliate Products</div>
+    <div class="page-sub">Promote these products and earn commissions on every sale</div>
+    <div class="product-grid" id="productGrid"><div class="spinner"></div></div>
+  </div>
+</div>
+
+<!-- PRODUCTS (public) -->
+<div class="view" id="view-products-public">
+  <div class="page">
+    <div class="page-title">Browse Products</div>
+    <div class="page-sub">Sign up to start promoting and earning commissions</div>
+    <div class="product-grid" id="productGridPublic"><div class="spinner"></div></div>
+    <div style="text-align:center;margin-top:32px;">
+      <button class="btn-primary" onclick="goTo('auth')">Join &amp; Start Earning →</button>
+    </div>
+  </div>
+</div>
+
+<!-- WITHDRAW -->
+<div class="view" id="view-withdraw">
+  <div class="page">
+    <div class="page-title">Withdraw Earnings</div>
+    <div class="page-sub">Request a payout of your available balance</div>
+    <div class="withdraw-layout">
+      <div class="card">
+        <div class="card-title">Request Withdrawal</div>
+        <div class="field"><label>Amount (USD)</label><input type="number" id="withdrawAmount" placeholder="Enter amount" min="1" /></div>
+        <button class="btn-full" onclick="requestWithdrawal()">Submit Request</button>
+        <div class="status-msg" id="withdrawStatus"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Pending Requests</div>
+        <div id="withdrawalsList"><div class="spinner"></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  const SUPA_URL = 'https://eefuslcthzshlywnvmxh.supabase.co';
+  const SUPA_KEY = 'sb_publishable_Cg5ruwk1M0879b51EhASnw_MojwW174';
+  const db = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+  let currentUser = null;
+
+  const VIEWS = ['hero','auth','dashboard','products','products-public','withdraw'];
+
+  function goTo(id) {
+    VIEWS.forEach(v => {
+      const el = document.getElementById('view-' + v);
+      if (el) el.classList.toggle('active', v === id);
+    });
+    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+    const map = { hero:'Home', auth:'Sign In', dashboard:'Dashboard', products:'Products', withdraw:'Withdraw' };
+    document.querySelectorAll('.nav-btn').forEach(b => {
+      if (b.textContent.trim() === (map[id] || '')) b.classList.add('active');
+    });
+    window.scrollTo(0,0);
+  }
+
+  function buildNav(loggedIn) {
+    const nav = document.getElementById('navLinks');
+    const pill = document.getElementById('userPill');
+    const logoutEl = document.getElementById('logoutBtn');
+    if (loggedIn) {
+      nav.innerHTML = `
+        <button class="nav-btn" onclick="goTo('dashboard')">Dashboard</button>
+        <button class="nav-btn" onclick="goTo('products')">Products</button>
+        <button class="nav-btn" onclick="goTo('withdraw')">Withdraw</button>
+      `;
+      pill.style.display = 'flex';
+      logoutEl.style.display = 'block';
+    } else {
+      nav.innerHTML = `
+        <button class="nav-btn active" onclick="goTo('hero')">Home</button>
+        <button class="nav-btn" onclick="goTo('auth')">Sign In</button>
+      `;
+      pill.style.display = 'none';
+      logoutEl.style.display = 'none';
+    }
+  }
+
+  let toastTimer;
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove('show'), 2800);
+  }
+
+  function setStatus(id, msg, type) {
+    const el = document.getElementById(id);
+    el.textContent = msg;
+    el.className = 'status-msg show ' + type;
+  }
+  function clearStatus(id) { document.getElementById(id).className = 'status-msg'; }
+
+  async function signUp() {
+    const fullName = document.getElementById('signupFullName').value.trim();
+    const username = document.getElementById('signupUsername').value.trim();
+    const email    = document.getElementById('signupEmail').value.trim();
+    const phone    = document.getElementById('signupPhone').value.trim();
+    const country  = document.getElementById('signupCountry').value;
+    const pw       = document.getElementById('signupPassword').value;
+
+    if (!fullName || !username || !email || !phone || !country || !pw) {
+      setStatus('signupStatus', 'Please fill in all fields.', 'error'); return;
+    }
+
+    setStatus('signupStatus', 'Creating account…', 'info');
+    const { data, error } = await db.auth.signUp({ email, password: pw });
+    if (error) { setStatus('signupStatus', error.message, 'error'); return; }
+
+    const user = data.user;
+    const referralCode = 'AFF' + Math.floor(Math.random() * 100000);
+
+    await db.from('users').insert([{
+      id: user.id, email, username,
+      full_name: fullName, phone, country,
+      referral_code: referralCode, balance: 0
+    }]);
+
+    setStatus('signupStatus', 'Account created! You can now sign in.', 'success');
+  }
+
+  async function login() {
+    const email = document.getElementById('loginEmail').value.trim();
+    const pw = document.getElementById('loginPassword').value;
+    if (!email || !pw) { setStatus('loginStatus','Please fill in all fields.','error'); return; }
+    setStatus('loginStatus','Signing in…','info');
+    const { data, error } = await db.auth.signInWithPassword({ email, password: pw });
+    if (error) { setStatus('loginStatus', error.message, 'error'); return; }
+    currentUser = data.user;
+    clearStatus('loginStatus');
+    await afterLogin();
+  }
+
+  async function afterLogin() {
+    buildNav(true);
+    document.getElementById('userPill').textContent = currentUser.email;
+    await loadDashboard();
+    goTo('dashboard');
+  }
+
+  async function logout() {
+    await db.auth.signOut();
+    currentUser = null;
+    buildNav(false);
+    goTo('hero');
+    showToast('Signed out successfully');
+  }
+
+  async function loadDashboard() {
+    const { data } = await db.from('users').select('*').eq('id', currentUser.id).single();
+    if (!data) return;
+    document.getElementById('dashWelcome').textContent = 'Welcome back, ' + (data.full_name || data.username);
+    document.getElementById('dashBalance').textContent  = '$' + data.balance;
+    document.getElementById('dashCode').textContent     = data.referral_code;
+    document.getElementById('profName').textContent     = data.full_name    || '—';
+    document.getElementById('profUsername').textContent = data.username     || '—';
+    document.getElementById('profPhone').textContent    = data.phone        || '—';
+    document.getElementById('profCountry').textContent  = data.country      || '—';
+    document.getElementById('profEmail').textContent    = data.email        || '—';
+    document.getElementById('referralLink').value = window.location.href.split('?')[0] + '?ref=' + data.referral_code;
+    await loadReferrals();
+    await loadProducts();
+    await loadWithdrawals();
+  }
+
+  async function loadReferrals() {
+    const { data } = await db.from('referrals').select('*').eq('referrer_id', currentUser.id);
+    const list = document.getElementById('referralsList');
+    document.getElementById('referralBadge').textContent = data ? data.length : 0;
+    document.getElementById('dashReferralCount').textContent = data ? data.length : 0;
+    if (!data || data.length === 0) {
+      list.innerHTML = '<div class="empty-state"><div class="e-icon">🔗</div>No referrals yet — share your link!</div>';
+      return;
+    }
+    list.innerHTML = data.map((r,i) =>
+      '<div class="referral-item" style="animation-delay:' + (i*50) + 'ms">' +
+        '<div><div class="ri-label">Referral</div><div style="font-size:12px;color:var(--text-muted);margin-top:2px;">' + new Date(r.created_at).toLocaleDateString() + '</div></div>' +
+        '<div class="ri-amount">+$' + r.commission + '</div>' +
+      '</div>'
+    ).join('');
+  }
+
+  async function loadProducts() {
+    const { data } = await db.from('products').select('*');
+    renderProducts(data, 'productGrid', true);
+    renderProducts(data, 'productGridPublic', false);
+  }
+
+  function renderProducts(data, containerId, withPromote) {
+    const grid = document.getElementById(containerId);
+    if (!grid) return;
+    if (!data || data.length === 0) {
+      grid.innerHTML = '<div class="empty-state"><div class="e-icon">📦</div>No products available yet.</div>';
+      return;
+    }
+    grid.innerHTML = data.map((p,i) =>
+      '<div class="product-card" style="animation-delay:' + (i*80) + 'ms">' +
+        '<div class="product-header"><div class="product-name">' + p.name + '</div><div class="product-price">$' + p.price + '</div></div>' +
+        '<div class="product-body">' +
+          '<div class="commission-badge"><span>🏷</span> ' + p.affiliate_percent + '% commission</div>' +
+          '<div style="font-size:13px;color:var(--text-muted);margin-bottom:14px;">Earn $' + ((p.price * p.affiliate_percent) / 100).toFixed(2) + ' per sale</div>' +
+          (withPromote
+            ? '<button class="promote-btn" onclick="promoteProduct(\'' + p.id + '\',\'' + p.name + '\')">Promote this product →</button>'
+            : '<button class="promote-btn" onclick="goTo(\'auth\')">Sign up to promote →</button>') +
+        '</div>' +
+      '</div>'
+    ).join('');
+  }
+
+  function promoteProduct(id, name) { showToast('Affiliate link ready for "' + name + '"!'); }
+
+  async function requestWithdrawal() {
+    const amount = parseFloat(document.getElementById('withdrawAmount').value);
+    if (!amount || amount <= 0) { setStatus('withdrawStatus','Please enter a valid amount.','error'); return; }
+    setStatus('withdrawStatus','Submitting…','info');
+    const { error } = await db.from('withdrawals').insert([{ user_id: currentUser.id, amount, status: 'pending' }]);
+    if (error) { setStatus('withdrawStatus', error.message, 'error'); return; }
+    setStatus('withdrawStatus','Withdrawal request submitted!','success');
+    document.getElementById('withdrawAmount').value = '';
+    showToast('Withdrawal request submitted ✓');
+    await loadWithdrawals();
+  }
+
+  async function loadWithdrawals() {
+    const list = document.getElementById('withdrawalsList');
+    const { data } = await db.from('withdrawals').select('*').eq('user_id', currentUser.id).order('created_at', { ascending: false });
+    if (!data || data.length === 0) {
+      list.innerHTML = '<div class="empty-state"><div class="e-icon">💸</div>No requests yet.</div>';
+      return;
+    }
+    list.innerHTML = data.map(w =>
+      '<div class="pending-item">' +
+        '<div><div class="pi-amount">$' + w.amount + '</div><div style="font-size:12px;color:var(--text-muted);margin-top:2px;">' + new Date(w.created_at).toLocaleDateString() + '</div></div>' +
+        '<span class="pending-badge">' + w.status + '</span>' +
+      '</div>'
+    ).join('');
+  }
+
+  function copyLink() {
+    const val = document.getElementById('referralLink').value;
+    navigator.clipboard.writeText(val).then(() => showToast('Referral link copied!'));
+  }
+
+  (async () => {
+    const { data } = await db.auth.getSession();
+    if (data.session) {
+      currentUser = data.session.user;
+      await afterLogin();
+    } else {
+      buildNav(false);
+      const ref = new URLSearchParams(window.location.search).get('ref');
+      if (ref) { goTo('auth'); showToast('Referral code "' + ref + '" applied!'); }
+    }
+    await loadProducts();
+  })();
+</script>
+</body>
+</html>
